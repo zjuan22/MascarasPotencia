@@ -1,0 +1,3 @@
+Wavelength (nm)	Channel Gain (dB)
+1.54534E-6	16.78176
+1.550155E-6	17.072013

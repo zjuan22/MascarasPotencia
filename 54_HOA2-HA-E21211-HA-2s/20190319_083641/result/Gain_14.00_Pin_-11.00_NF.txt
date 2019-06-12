@@ -1,0 +1,3 @@
+Wavelength (nm)	Noise Figure (dB)
+1.545385E-6	12.272964
+1.550155E-6	11.933331

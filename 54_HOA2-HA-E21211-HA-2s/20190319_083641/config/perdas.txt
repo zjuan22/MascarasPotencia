@@ -1,0 +1,11 @@
+Os Valores a baixo compreende as perdas lineares ente as rotas para os cálculos envolvendo o power meter.
+Para os cálculos envolvendo o OSA foram usados dois arquivos com valores de perda entre os espectros:
+   -(UUT in) - (SRC) diferença entre entrada do UUT e a saída da rota sem passar pelo UUT
+   -(UUT in) - (UUT) diferença entre entreda do UUT e a saída da rota passando pelo UUT
+
+
+
+SrcToPM: 7.21
+UUTtoPM: 4.78
+SrcToUUT: 3.18
+Fiber: 0.00
