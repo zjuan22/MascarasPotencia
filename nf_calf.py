@@ -1,11 +1,23 @@
+import matplotlib
+matplotlib.use('Agg')
+
 from pathlib import Path
 import pandas as pd
-import numpy
+import numpy as np
+import peakutils
+import plotly.plotly as py
+import plotly.graph_objs as go
+import matplotlib.pyplot as plt
+
+from scipy.signal import butter, lfilter, freqz
+
+
+
 #from scipy.constants import pi
 
 
-path = '54_HOA2-HA-E21211-HA-2s/20190319_083641'
-mask_file = path + '/mask/mask1.txt'
+path_uut = '54_HOA2-HA-E21211-HA-2s/20190319_083641'
+mask_file = path_uut + '/mask/mask1.txt'
 
 ampCh_0, srcCh_0, laser3Pwr_0, targetOutput_0, pin_0, targetGain_0 = [], [],[], [],[], []
  
@@ -55,10 +67,10 @@ def ls(ruta = Path.cwd()):
 
 
 files = []
-files = ls(path + '/spectrum')
+files = ls(path_uut + '/spectrum')
 
 
-regis = path.split('-')
+regis = path_uut.split('-')
 
 # Number of stages
 #print (regis[4][0:2])
@@ -130,7 +142,7 @@ res         = 0.097 * 1e-9; #0.1 * 1e-9
 
 
 
-#IL
+# Define Fiber value according Stage.
 if stg == "1s":
     #STG 1
     Fiber = 19.96
@@ -138,6 +150,10 @@ elif stg == "2s":
     #STG 2
     Fiber = 0
 
+
+
+
+#print(max(lista))
 
 #Exemplo ordenação
 #-------------------
@@ -148,10 +164,186 @@ elif stg == "2s":
 #print(new)
 #-------------------
 
-NoiseConv = 0
+
+# maximum value of Gain and Pin of Src files since Amp spectrum files.  
+file_spectrumSrc = path_uut+"/spectrum/Gain_%0.2f_Pin_%0.2f_Src.txt" % (max(TargetGain_s)-2, max(TargetPout) - max(TargetGain_s))
+spectrumSrc_wave = []
+spectrumSrc_power = []
+print(file_spectrumSrc)
+
+with open(file_spectrumSrc) as f:
+    for line in f:
+        if(line.strip() != ''): 
+            line_spl = line.split('\t') # vamos quebrar cada linha por tab
+            spectrumSrc_wave.append(line_spl[0:1])
+            spectrumSrc_power.append(line_spl[1:2])
+
+
+spectrumSrc_wave_n = []
+spectrumSrc_power_n = []
+
+#Change the data to float.
+spectrumSrc_wave_n = numerizar(spectrumSrc_wave)
+spectrumSrc_power_n = numerizar(spectrumSrc_power)
+
+#Calculate the resolution
+Dres = (max(spectrumSrc_wave_n) - min(spectrumSrc_wave_n)) / (len(spectrumSrc_wave_n)-1)
+resouuu = np.ceil(3*res/Dres) # 7
+
+#print(spectrumSrc_power_n)
+
+print(spectrumSrc_power_n[845])
+
+min = np.min(spectrumSrc_power_n)
+max = np.max(spectrumSrc_power_n)
+threshold = (min + max) / 2
+#print("value max: " + str(max) + ", value min: " + str(min) +  ", threshold:  "+ str(threshold))
+ 
+
+#print(len(peakutils.indexes(spectrumSrc_power_n, thres=threshold))) 
+
+#for i in range(43011,43017): 
+#  #print ("index: "+ str((i)*(1/100)))	
+#  #print("tressss: " + str(len(peakutils.indexes(spectrumSrc_power_n, thres=(i+1)*(-1)))))
+#  #picos = len(peakutils.indexes(spectrumSrc_power_n, thres=threshold, min_dist = -i, thres_abs = True ))
+#  picos = len(peakutils.indexes(spectrumSrc_power_n, thres=(-i/1000), thres_abs = True, min_dist= max ))
+# #print(tres)
+#  #if(tres != 72 ):
+#  if(picos != 0 ):
+#     #print("diferente :" + str((i+1)*(1/100)) )
+#     print("valueee: " + str(picos) + "  threshold= "+ str(-i/1000) + "listas: " + str(peakutils.indexes(spectrumSrc_power_n, thres=(-i/1000), thres_abs = True, min_dist= max))  + "\n") 
+
+
+#print(len(peakutils.indexes(spectrumSrc_power_n, thres=)))
+
+
+def butter_lowpass(cutoff, fs, order=5):
+    nyq = 0.5 * fs
+    normal_cutoff = cutoff / nyq
+    b, a = butter(order, normal_cutoff, btype='low', analog=False)
+    return b, a
+
+
+def butter_lowpass_filter(data, cutoff, fs, order=5):
+    b, a = butter_lowpass(cutoff, fs, order=order)
+    y = lfilter(b, a, data)
+    return y
+
+
+# Filter requirements.
+order = 1
+fs =  30      # sample rate, Hz
+cutoff = 3  # desired cutoff frequency of the filter, Hz  # com 3 ok
+
+
+# Filter the data, and plot both the original and filtered signals.
+y = butter_lowpass_filter(spectrumSrc_power_n, cutoff, fs, order)
+
+
+min = np.min(y)
+max = np.max(y)
+print( (min + max) / 2)
+
+#listaa = peakutils.indexes(spectrumSrc_power_n, thres=-50, thres_abs = True, min_dist= max)
+
+#list peaks positions of peaks.
+listaa = peakutils.indexes(y, thres=((min + max) / 2), thres_abs = True, min_dist= max)
+
+#print (str("longiiii "+ str(len(listaa)) + " lista filtrada indexes: " + str(listaa) ) + "\n")
+
+
+AllLamS_0 = []
+#AllLamS = spectrumSrc(loc,1)'*1e9
+for i in range(len(listaa)):
+    frec_max = spectrumSrc_wave_n[listaa[i]]
+    
+    #mult= float(frec_max)*1e9
+    AllLamS_0.append(frec_max*1e9)
+    
+
+print(int(AllLamS_0[0]))
+PoutPM = [];
+PoutPD = [];
+
+
+for i in range (1, len(TargetGain_s)):
+    #pData = path_uut+"/result/Gain_%0.2f_Pin_%0.2f_PM.txt" % (max(TargetGain_s)-2, max(TargetPout) - max(TargetGain_s))
+    if (Pin_s[i] < 0 or Pin_s[i] >9) :
+      path_pData = path_uut+"/result/Gain_%0.2f_Pin_%0.2f_PM.txt" % (TargetGain_s[i], Pin_s[i])  #
+    else:
+      path_pData = path_uut+"/result/Gain_%0.2f_Pin_0%0.2f_PM.txt" % (TargetGain_s[i], Pin_s[i])  #
+
+      with open(path_pData) as f:
+
+          first_line = True
+          for line in f:
+             if(line.strip() != ''):
+                 if(first_line == True ):
+                    first_line = False
+                 else: 
+                    line_spl = line.split(' ') # vamos quebrar cada linha por espaco
+                    #print( line_spl[1:2])
+                    PoutPM.append(float(line_spl[1:2][0]))
+                      
+
+print(PoutPM)
+
+#for i in range(4100,5300): 
+#  #print ("index: "+ str((i)*(1/100)))	
+#  #print("tressss: " + str(len(peakutils.indexes(spectrumSrc_power_n, thres=(i+1)*(-1)))))
+#  #picos = len(peakutils.indexes(spectrumSrc_power_n, thres=threshold, min_dist = -i, thres_abs = True ))
+#  picos = len(peakutils.indexes(y, thres=(-i/100), thres_abs = True, min_dist= max ))
+#  #print(tres)
+#  #if(tres != 72 ):
+#  if(picos != 0 ):
+#     #print("diferente :" + str((i+1)*(1/100)) )
+#     print("valueee: " + str(picos) + "  threshold= "+ str(-i/100))
+
+
+
+#for i in range(100):
+	#print(i)
+#    print(peakutils.indexes(spectrumSrc_power_n, thres=(np.min(spectrumSrc_power_n)-np.max(spectrumSrc_power_n))/2)
+
+#trace = go.Scatter(
+#    x = [j for j in range(len(spectrumSrc_power_n))],
+#    y = spectrumSrc_power_n,
+#    mode = 'lines'
+#)
+
+#data = [trace]
+#py.iplot(data, filename='milk-production-plot')
+
+# gca stands for 'get current axis'
+#ax = plt.gca()
+
+
+#for i, row in df.iterrows():
+
+#plt.plot(row['list1'], row['list2'])
+
+#df.plot(kind='line',x='name',y='num_children',ax=ax)
 
 
 
 
+ind = np.arange(len(spectrumSrc_power_n))
 
+fig = plt.figure()
+#fig_f = plt.figure()
+
+ax = fig.add_subplot(111)
+ax.plot(ind, spectrumSrc_power_n)
+
+ax1 = fig.add_subplot(111)
+ax1.plot(ind, y)
+
+#for i in range(len(listaa)):
+#   ax1.plot( listaa[i], spectrumSrc_power_n[listaa[i]], 'go') # green bolinha
+
+varrr = 'exemm'	
+plt.savefig(varrr+".svg")
+
+#print(spectrumSrc_wave_n)
+#print(spectrumSrc_power_n)
 
