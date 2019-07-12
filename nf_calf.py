@@ -8,6 +8,7 @@ import peakutils
 import plotly.plotly as py
 import plotly.graph_objs as go
 import matplotlib.pyplot as plt
+import copy
 
 from scipy.signal import butter, lfilter, freqz
 
@@ -140,6 +141,7 @@ planck      = 6.626068e-34;
 light       = 299792458;
 res         = 0.097 * 1e-9; #0.1 * 1e-9
 
+print ("res:  "+str(res))
 
 
 # Define Fiber value according Stage.
@@ -264,16 +266,20 @@ for i in range(len(listaa)):
 print(int(AllLamS_0[0]))
 PoutPM = [];
 PoutPD = [];
+Src2PM_lst = [];
+UUT2PM_lst = [];
+flag = True
+Spec_Src = []
+Spec_Src_power = []
 
-
-for i in range (1, len(TargetGain_s)):
+for i in range (0, len(TargetGain_s)):
     #pData = path_uut+"/result/Gain_%0.2f_Pin_%0.2f_PM.txt" % (max(TargetGain_s)-2, max(TargetPout) - max(TargetGain_s))
     if (Pin_s[i] < 0 or Pin_s[i] >9) :
       path_pData = path_uut+"/result/Gain_%0.2f_Pin_%0.2f_PM.txt" % (TargetGain_s[i], Pin_s[i])  #
     else:
       path_pData = path_uut+"/result/Gain_%0.2f_Pin_0%0.2f_PM.txt" % (TargetGain_s[i], Pin_s[i])  #
 
-      with open(path_pData) as f:
+    with open(path_pData) as f:
 
           first_line = True
           for line in f:
@@ -282,11 +288,87 @@ for i in range (1, len(TargetGain_s)):
                     first_line = False
                  else: 
                     line_spl = line.split(' ') # vamos quebrar cada linha por espaco
-                    #print( line_spl[1:2])
+                    #print( line_spl)
                     PoutPM.append(float(line_spl[1:2][0]))
-                      
+                    
+                    if(stg == "1s"):
+                       PoutPD.append(float(line_spl[3:4][0])) 
+                    elif(stg == "2s"):
+                       PoutPD.append(float(line_spl[5:6][0])) 
+                    
+                    if(stg == "1s"):
+                      #if( (line_spl[1:2]<-100) or (line_spl[8:9]<-45)):
+                      if( (float(line_spl[1:2])>-101) or (float(line_spl[8:9])>-46)):
+                          Src2PM_lst.append(float(line_spl[8:9][0])+Fiber-float(line_spl[0:1][0]))
+                          UUT2PM_lst.append(float(line_spl[3:4][0])-float(line_spl[1:2][0]))
+                    elif(stg == "2s"):
+                      #if (line_spl[1:2][0]<-100):
+                      if (float(line_spl[1:2][0])>-101):
+                         Src2PM_lst.append(float(line_spl[4:5][0])-float(line_spl[0:1][0]))
+                         UUT2PM_lst.append(float(line_spl[5:6][0])-float(line_spl[1:2][0]))
+ 
+                    b = copy.deepcopy(TargetGain_s)
+                    #maxx = max(TargetGain_s)
+                    aux = pd.Series(b).max()
+                    #print("maxxx "+ str(aux))
 
-print(PoutPM)
+                    if( (TargetGain_s[i]== pd.Series(TargetGain_s).max()-8) and (TargetPout_s[i] > pd.Series(TargetPout_s).max()-9) and flag == True ):
+                      flag = False
+                      file_spectrumSrc = path_uut+"/spectrum/Gain_%0.2f_Pin_%0.2f_Src.txt" % (TargetGain_s[i], Pin_s[i])
+                      with open(file_spectrumSrc) as f:
+                          first_line = True
+                          for line in f:
+                              if(first_line == True ):
+                                 first_line = False
+                              else:
+                                 if(line.strip() != ''): 
+                                     line_spl = line.split('\t') # vamos quebrar cada linha por tab
+                                     Spec_Src_power.append(line_spl[1:2])
+
+factor = 0.000215*len(Spec_Src_power)/0.1
+
+# reproducing eq. power  = 10*log10(trapz(10.^(spectrumSrc(:,2)/10)*1e-3) *1/factor*1e3); 
+#Division/10
+src_power = []
+for element in Spec_Src_power:
+       src_power.append(float(element[0])/10) 
+#print (src_power)       
+
+expo_var = np.power(10, (src_power)) 
+expo_var_1 = expo_var * (1e-3)  
+
+expo_var2 = np.trapz(expo_var_1)  #ok
+#print("integral  "+ str(expo_var2))
+
+power = 10*np.log10(expo_var2 *(1/factor)*1e3) 
+#print("integral  "+ str(power))
+
+
+OSA2PM = float(line_spl[0:1][0]) - power
+print("OSA2PM: "+ str(OSA2PM))
+
+
+#print(PoutPD)
+#print(Src2PM)
+print(len(Spec_Src))
+media = pd.Series(Src2PM_lst)
+Src2PM = media.mean()
+print ("Src2PM: "+ str(Src2PM))
+
+media = pd.Series(UUT2PM_lst)
+UUT2PM = media.mean()
+print ("UUT2PM: "+ str(UUT2PM))
+
+#print (TargetGain_s[0])
+#print (TargetPout_s[0])
+
+
+#spectrumSrc_wave = []
+#spectrumSrc_power = []
+#print(file_spectrumSrc)
+
+
+
 
 #for i in range(4100,5300): 
 #  #print ("index: "+ str((i)*(1/100)))	
