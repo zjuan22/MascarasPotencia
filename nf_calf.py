@@ -374,6 +374,11 @@ spec_amp_power_all = []
 spec_amp_frec_all = [] 
 spec_src_frec_all = [] 
 
+
+file_Src = path_uut+"/spectrum/Gain_%0.2f_Pin_%0.2f_Src.txt" % (TargetGain_s[0], Pin_s[0])
+
+print ("first file: " + str(file_Src) )
+
 for i in range (0, len(TargetGain_s)):  # 550 files 
    #spectrumAmp = dlmread([[path '\spectrum\'] sprintf('Gain_%05.2f_Pin_%05.2f_Amp.txt',TargetGain(j),Pin(j))],'	',2,0);
    if (Pin_s[i] < 0 or Pin_s[i] >9) :
@@ -407,6 +412,7 @@ for i in range (0, len(TargetGain_s)):  # 550 files
 
    #sltRange = spectrumAmp(:,1)*1e9>min(pmaxSrc(:,1))-7 & spectrumAmp(:,1)*1e9<max(pmaxSrc(:,1))+7;  NEXT vector of "1s" 
 
+##  ********************************* Start the calculus
 
 # Filter the data, and plot both the original and filtered signals.
 # It calculates over the first src file. Just for test. 
@@ -670,14 +676,26 @@ print("DFreq: " + str(DeltaFreq) )
 # *****---    NF_linear = (PaseOUT(:,2) - PaseIN(:,2).*10.^(RealChannelGain(:,2)/10))./(planck*Freq.*DeltaFreq.*10.^(RealChannelGain(:,2)/10));
 aux_3 = []
 NF_linear = []
+NFEval = []
 
 conv_0 = conv_dbm2w(RealChannelGain)
 
 for elem in range(0, len(RealChannelGain)) :
    NF_linear.append( ( PaseOUT[1][elem] - (PaseIN[1][elem] * conv_0[elem]*1e3 ) ) / (planck*Freq[elem]*DeltaFreq[elem]*float(conv_0[elem])*1e3 ) )
    #aux_3.append(planck*Freq[elem]*DeltaFreq[elem]*float(conv_0[elem])*1e3 )
+   NFEval.append( 10*np.log10(  ( PaseOUT[1][elem] - (PaseIN[1][elem] * conv_0[elem]*1e3 ) ) / (planck*Freq[elem]*DeltaFreq[elem]*float(conv_0[elem])*1e3 ) ) )
 
-print("NF_linear : " + str(NF_linear) ) 
+print("NFEval : " + str(np.max(NFEval) ) )
+
+
+# ************* NFEval(j) = 10*log10(max(NF_linear));
+print("NF_linear : " + str(NF_linear) )
+
+
+# ******   GainFlatnessEval(j) = max(pmaxAmp(:,2)) - min(pmaxAmp(:,2));
+print("GainFlatnessEval : "+  str( np.max(pmaxAmp_pwr - np.min(pmaxAmp_pwr) ) ))
+
+ 
 
 #for i in range(4100,5300): 
 #  #print ("index: "+ str((i)*(1/100)))	
