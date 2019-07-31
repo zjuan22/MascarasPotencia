@@ -146,21 +146,6 @@ elif stg == "2s":
     #STG 2
     Fiber = 0
 
-
-
-
-#print(max(lista))
-
-#Exemplo ordenação
-#-------------------
-#mat = [[10,-17,-7],[10,-15,-6],[11,-18,-7],[10,-16,-6],[11,-15,-7]]
-#valores_serie = pd.Series(mat)
-#print(valores_serie)
-#new=valores_serie.sort_values(ascending=True)
-#print(new)
-#-------------------
-
-
 # maximum value of Gain and Pin of Src files since Amp spectrum files.  
 file_spectrumSrc = path_uut+"/spectrum/Gain_%0.2f_Pin_%0.2f_Src.txt" % (max(TargetGain_s)-2, max(TargetPout) - max(TargetGain_s))
 spectrumSrc_wave = []
@@ -444,7 +429,7 @@ for elem in loc:
   pmaxSrc_frec.append( spec_src_frec_all[0][elem]*1e9 )
 
 #it calculates the power and frec of peakes   
-print (pmaxSrc_power)    
+print ("pmaxsrc_power: " + str( pmaxSrc_power) )
 print (pmaxSrc_frec)    
 
 #sltRange = spectrumAmp(:,1)*1e9>min(pmaxSrc(:,1))-7 & spectrumAmp(:,1)*1e9<max(pmaxSrc(:,1))+7;
@@ -609,8 +594,6 @@ PaseIN.append(aux_1)
 print (PaseIN)
 
 
-
-
 # --****        PaseAuxOUT= ([10.^((pminAmp(:,2)+NoiseConv)/10);0] + [0;10.^((pminAmp(:,2)+NoiseConv)/10)])./2;
 first_p = []
 first_p = conv_dbm2w(pminAmp_pwr)
@@ -627,7 +610,6 @@ for elem in range (0, len(var2)):
    # calculates the mean
    PaseAuxOUT.append ( (var1[elem] + var2[elem])/2  ) 
 
-
 # --****       PaseOUT = [lamS PaseAuxOUT(2:end-1)*1e-3];
 PaseOUT = []
 aux_1 = []
@@ -635,13 +617,67 @@ aux_1 = []
 for i in range(1, len(PaseAuxOUT)-1 ): #Paseaux sempre vai ter 4 elem?
    aux_1.append(PaseAuxOUT[i]*1e-3 ) 
 
-
 PaseOUT.append(lamS)
 PaseOUT.append(aux_1) 
-print (PaseOUT)
+print ("PaseOUT :" + str(PaseOUT) )
+
+	
+
+#*****    RealChannelGain  = [lamS 10*log10((10.^(pmaxAmp(:,2)/10)*1e-3-PaseOUT(:,2))*1e3) - 10*log10((10.^(pmaxSrc(:,2)/10)*1e-3-PaseIN(:,2))*1e3)];
+# 10*log10( (10.^(pmaxAmp(:,2)/10)*1e-3-PaseOUT(:,2) ) *1e3) - 10*log10((10.^(pmaxSrc(:,2)/10)*1e-3-PaseIN(:,2))*1e3)];
+
+aux_0 = []
+aux_1 = []
+
+#aux_0 = conv_dbm2w(pmaxSrc_power) 
+
+for elem in conv_dbm2w(pmaxSrc_power):
+  aux_0.append(float(elem) ) 
+ 
+for elem in conv_dbm2w(pmaxAmp_pwr):
+  aux_1.append(float(elem) ) 
+
+print ("aux_0: " + str(aux_0) )
+
+#aux_1 = conv_dbm2w(pmaxAmp_pwr) 
+valll = []
+power_0 = []
+power_1 = []
+
+RealChannelGain = [] 
+for i in range(0,len(pmaxSrc_power) ):
+  power_0.append( 10*np.log10( ((aux_1[i] )-(  PaseOUT[1][i] )) *1e3) )    
+  power_1.append( 10*np.log10( ((aux_0[i] )-(  PaseIN[1][i]  )) *1e3) )
+  RealChannelGain.append(power_0[i] - power_1[i])
+
+print ("RealChannelGain :"+ str(RealChannelGain) )
+
+#    Freq        = light./lamS * 1e9;
+#    DeltaFreq   = (Freq.^2).*res./light;
+DeltaFreq = [] 
+Freq = []
+for elem in lamS: 
+  Freq.append(light/elem * 1e9 )
+  
+DeltaFreq = []
+for elem in Freq: 
+  DeltaFreq.append(np.power(elem, 2) * res/light )
+
+print("Freq: " + str(Freq) )
+print("DFreq: " + str(DeltaFreq) )
 
 
+# *****---    NF_linear = (PaseOUT(:,2) - PaseIN(:,2).*10.^(RealChannelGain(:,2)/10))./(planck*Freq.*DeltaFreq.*10.^(RealChannelGain(:,2)/10));
+aux_3 = []
+NF_linear = []
 
+conv_0 = conv_dbm2w(RealChannelGain)
+
+for elem in range(0, len(RealChannelGain)) :
+   NF_linear.append( ( PaseOUT[1][elem] - (PaseIN[1][elem] * conv_0[elem]*1e3 ) ) / (planck*Freq[elem]*DeltaFreq[elem]*float(conv_0[elem])*1e3 ) )
+   #aux_3.append(planck*Freq[elem]*DeltaFreq[elem]*float(conv_0[elem])*1e3 )
+
+print("NF_linear : " + str(NF_linear) ) 
 
 #for i in range(4100,5300): 
 #  #print ("index: "+ str((i)*(1/100)))	
