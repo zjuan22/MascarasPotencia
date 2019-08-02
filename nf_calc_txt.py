@@ -199,14 +199,14 @@ threshold = (min + max) / 2
 #print(len(peakutils.indexes(spectrumSrc_power_n, thres=)))
 
 
-def butter_lowpass(cutoff, fs, order=5):
+def butter_lowpass(cutoff, fs, order=1):
     nyq = 0.5 * fs
     normal_cutoff = cutoff / nyq
     b, a = butter(order, normal_cutoff, btype='low', analog=False)
     return b, a
 
 
-def butter_lowpass_filter(data, cutoff, fs, order=5):
+def butter_lowpass_filter(data, cutoff, fs, order=1):
     b, a = butter_lowpass(cutoff, fs, order=order)
     y = lfilter(b, a, data)
     return y
@@ -214,6 +214,7 @@ def butter_lowpass_filter(data, cutoff, fs, order=5):
 
 # Filter requirements.
 order = 1
+#fs =  30      # sample rate, Hz
 fs =  30      # sample rate, Hz
 cutoff = 3  # desired cutoff frequency of the filter, Hz  # com 3 ok
 
@@ -221,11 +222,8 @@ cutoff = 3  # desired cutoff frequency of the filter, Hz  # com 3 ok
 # Filter the data, and plot both the original and filtered signals.
 y = butter_lowpass_filter(spectrumSrc_power_n, cutoff, fs, order)
 
-
 min = np.min(y)
 max = np.max(y)
-print( (min + max) / 2)
-
 #listaa = peakutils.indexes(spectrumSrc_power_n, thres=-50, thres_abs = True, min_dist= max)
 
 #list peaks positions of peaks.
@@ -243,7 +241,7 @@ for i in range(len(listaa)):
     AllLamS_0.append(frec_max*1e9)
     
 
-print(int(AllLamS_0[0]))
+#print(int(AllLamS_0[0]))
 PoutPM = [];
 PoutPD = [];
 Src2PM_lst = [];
@@ -374,12 +372,21 @@ spec_amp_power_all = []
 spec_amp_frec_all = [] 
 spec_src_frec_all = [] 
 
+NFEval_all = []
+NF_linear_all  = []
+GainFlatnessEval_all = []
+
+ch_src_all = [] 
+ch_amp_all = [] 
+
 
 file_Src = path_uut+"/spectrum/Gain_%0.2f_Pin_%0.2f_Src.txt" % (TargetGain_s[0], Pin_s[0])
 
 print ("first file: " + str(file_Src) )
 
-for i in range (0, len(TargetGain_s)):  # 550 files 
+for i in range (0, len(TargetGain_s)):  # 550 files
+
+   print ("\n" + "this is the file no. : " + str(i) ) 
    #spectrumAmp = dlmread([[path '\spectrum\'] sprintf('Gain_%05.2f_Pin_%05.2f_Amp.txt',TargetGain(j),Pin(j))],'	',2,0);
    if (Pin_s[i] < 0 or Pin_s[i] >9) :
        #file_spectrumSrc = path_uut+"/spectrum/Gain_%0.2f_Pin_%0.2f_Src.txt" % (TargetGain_s[i], TargetPout[i] -TargetGain_s[i])
@@ -412,347 +419,371 @@ for i in range (0, len(TargetGain_s)):  # 550 files
 
    #sltRange = spectrumAmp(:,1)*1e9>min(pmaxSrc(:,1))-7 & spectrumAmp(:,1)*1e9<max(pmaxSrc(:,1))+7;  NEXT vector of "1s" 
 
-##  ********************************* Start the calculus
-file_n = 22 
-# Filter the data, and plot both the original and filtered signals.
-# It calculates over the first src file. Just for test. 
-y = butter_lowpass_filter(spec_src_power_all[file_n], cutoff, fs, order)
-
-#ind = np.arange(len(spectrumSrc_power_n))
-#ind = np.arange(len(spectrumSrc_power_n))
-
-fig = plt.figure()
-##fig_f = plt.figure()
-#
-#ax1 = fig.add_subplot(111)
-#ax1.plot(ind, y)
-#
-#varrr = 'exemm'	
-#plt.savefig(varrr+".svg")
-
-pmaxSrc_power = []
-pmaxSrc_frec = []
-
-min = np.min(y)
-max = np.max(y)
-#print( (min + max)*0.7 )
-
-loc = peakutils.indexes(y, thres=((min + max)*0.38 ), thres_abs = True, min_dist= max)
-print ("looooc - peaks" + str(loc))
-
-
-#it adds to the list the power and frec of peaks
-for elem in loc:
-  pmaxSrc_power.append( spec_src_power_all[file_n][elem] )
-  pmaxSrc_frec.append( spec_src_frec_all[file_n][elem]*1e9 )
-
-#it calculates the power and frec of peakes   
-print ("pmaxsrc_power: " + str( pmaxSrc_power) )
-print (pmaxSrc_frec)    
-
-#sltRange = spectrumAmp(:,1)*1e9>min(pmaxSrc(:,1))-7 & spectrumAmp(:,1)*1e9<max(pmaxSrc(:,1))+7;
-new_list = [] 
-filtered_list = [] 
-sltSpectrumAmp_power = []
-sltSpectrumAmp_frec = [] 
-
-
- 
-
-vv= spec_src_frec_all[file_n][i]*1e9 
-vvv= np.min(pmaxSrc_frec)-7
- 
-print("vvvvv ***: "+ str(vv) + "   " + str(vvv)  ) 
-
-
-#vvv= spec_src_frec_all[file_n][i]*1e9 > (np.min(pmaxSrc_frec)-7) 
-#vvv1=  spec_amp_frec_all[0][i]*1e9 < (np.max(pmaxSrc_frec)+7 ) 
-#print("vvvvv ***: "+ str(vv) + "   " + str(vvv) +  "  " + str(vvv1) ) 
-
-for i in range (0, len(spec_amp_power_all[file_n])):  # in the file  
+   ##  ********************************* Start the calculus
    
-   if (spec_src_frec_all[file_n][i]*1e9 > (np.min(pmaxSrc_frec)-7) and spec_amp_frec_all[0][i]*1e9 < (np.max(pmaxSrc_frec)+7 ))  :
-       new_list.append(1)
-       filtered_list.append(i)
-       sltSpectrumAmp_power.append(spec_amp_power_all[file_n][i] )
-       sltSpectrumAmp_frec.append(spec_src_frec_all[file_n][i] ) 
+   # Filter the data, and plot both the original and filtered signals.
+   # It calculates over the first src file. Just for test. 
+   y = []
+   #y = butter_lowpass_filter(spec_src_power_all[0], cutoff, fs, order)
+   y = butter_lowpass_filter(spectrum_src_power, cutoff, fs, order)
+   pmaxSrc_power = []
+   pmaxSrc_frec = []
+   min = 0
+   max = 0
+   min = np.min(y)
+   max = np.max(y)
+   #print( (min + max)*0.7 )
+   loc = []   
+   loc = peakutils.indexes(y, thres=((min + max)*0.38 ), thres_abs = True, min_dist= max)
+   #print ("looooc" + str(loc))
+
+   ch_src_all.append(len(loc) )
+   #-----  this print the figure.  just for debug. ------
+   #ind = np.arange(len(y))
+   #fig = plt.figure()
+   #ax1 = fig.add_subplot(111)
+   #ax1.plot(ind, y)
+   #varrr = 'exemm'	
+   #plt.savefig(varrr+".svg")
+
+   #it adds to the list the power and frec of peaks
+   for elem in loc:
+      pmaxSrc_power.append( spectrum_src_power[elem] )
+      #pmaxSrc_frec.append( spec_src_frec_all[0][elem]*1e9 )
+      pmaxSrc_frec.append( spec_src_aux[0][elem] * 1e9 )
+    
+   #it calculates the power and frec of peakes   
+   #print ("pmaxsrc_power: " + str( pmaxSrc_power) )
+   #print (pmaxSrc_frec)    
+
+   #sltRange = spectrumAmp(:,1)*1e9>min(pmaxSrc(:,1))-7 & spectrumAmp(:,1)*1e9<max(pmaxSrc(:,1))+7;
+   new_list = [] 
+   filtered_list = [] 
+   sltSpectrumAmp_power = []
+   sltSpectrumAmp_frec = [] 
+
+   #for i in range (0, len(spec_amp_power_all[0])):  # in the file  
+   for i in range (0, len(spectrum_amp_power )):  # in the file  
+      
+      #if (spec_amp_frec_all[0][i]*1e9 > (np.min(pmaxSrc_frec)-7) and spec_amp_frec_all[0][i]*1e9 < (np.max(pmaxSrc_frec)+7 ))  :
+      if (spec_amp_aux[0][i] *1e9 > (np.min(pmaxSrc_frec)-7) and spec_amp_aux[0][i]*1e9 < (np.max(pmaxSrc_frec)+7 ))  :
+          new_list.append(1)
+          filtered_list.append(i)
+          #sltSpectrumAmp_power.append(spec_amp_power_all[0][i] )
+          sltSpectrumAmp_power.append(spectrum_amp_power[i] )
+          sltSpectrumAmp_frec.append( spec_amp_aux [0][i] ) 
+    
+      else:  
+          new_list.append(0) 
+          #print (spec_amp_frec_all[0][i]*1e9) 
+          #print (np.min(pmaxSrc_frec)) 
+   #print ("newww" + str(new_list) )
+   #print ("newww" + str(filtered_list) )
+   
+   frec = []   #  nao se usa????? ********
+   deltafrec = []
+   
+   #DeltaFreq   = (Freq.^2).*res./light;
+   for elem in pmaxSrc_frec:
+       frec.append( (light * 1e9)/elem)
+       deltafrec.append( ( np.power( ((light * 1e9)/elem),2) * res / light ) ) 
+   
+   #print("frec: "+ str(frec) )
+   #print("deltafrec: "+ str(deltafrec) )
+   
+   #factor1  = 0.000215 * len(spec_amp_power_all[0])/(0.1)
+   factor1  = 0.000215 * len(spectrum_amp_power)/(0.1)
+   
+   #print ("factor : "+ str(factor1 ))
+   
+   sltSpectrumSrc = [] 
+   sltSpectrumAmp = [] 
+
+   #sltSpectrumSrc = spectrumSrc(sltRange,1);
+   for elem in filtered_list:
+        sltSpectrumSrc.append(spectrum_src_power[elem]) # este aqui para q????? 
+   
+   #print ("sltSpectrumSrc***" + str( len( sltSpectrumSrc  )) )
+   #print ("*************" + str( spec_src_power_aux_1[1]) )
+   #print("lista ===  "+ str(numbers))
+    
+   
+   #  reproducing : id = find(sltSpectrumAmp(:,2)==min(sltSpectrumAmp(locMax(i):locMax(i+1),2)));
+   # Filter the data, and plot both the original and filtered signals.
+   # It calculates over the first src file. Just for test. 
+   #yy = butter_lowpass_filter(sltSpectrumSrc, cutoff, fs, order)
+   yy = butter_lowpass_filter(sltSpectrumAmp_power, cutoff, fs, 1)
+    
+   #ax2 = fig.add_subplot(111)
+   #ax2.plot(ind, yy)
+   #varrr = 'exemm'	
+   #plt.savefig(varrr+".svg")
+
+   min0 = np.min(yy)
+   max0 = np.max(yy)
+   
+   #locMax = peakutils.indexes(yy, thres=((min0 + max0)*0.68), thres_abs = True, min_dist= max0)
+   locMax = []
+   cont = 0
+   while(len(loc) != len(locMax) ): 
+       if (cont < 100):
+          locMax = peakutils.indexes(yy, thres=((min0 + max0)* (cont/100)), thres_abs = True, min_dist= max0)
+          cont = cont + 1 
+
+   #print( "locMax: " + str(locMax))
+   
+   #minim = np.min(sltSpectrumAmp_power[locMax[0]:locMax[1]]) 
+   #print( "minim: " + str(minim))
+   #if (len(locMax) < 2 ): 
+   #     print ("Error, this spectrum has just one channel working")
+   #     sys.exit(1) 
+
+   ch_amp_all.append(len(locMax) )
+
  
-   else:  
-       new_list.append(0) 
-       #print (spec_src_frec_all[file_n][i]*1e9) 
-       #print (np.min(pmaxSrc_frec)) 
-#print ("newww" + str(new_list) )
-#print ("newww" + str(filtered_list) )
+   #1. next step procurr pontos minimos pocisões  entre esse range total de sltspectrumAMP. 
+   #so para dois maximos, fazer para 3 maximos ou mais!
 
 
-frec = []
-deltafrec = []
+   loc_0 = []
+   for maxim in range(0,len(locMax)-1 ):
+     minim = np.min(sltSpectrumAmp_power[locMax[maxim]:locMax[maxim+1]]) 
+    
+     for i in range(locMax[maxim], locMax[maxim+1]):
+       if(sltSpectrumAmp_power[i] == minim ):
+          loc_0.append(i)
 
  
-#DeltaFreq   = (Freq.^2).*res./light;
-for elem in pmaxSrc_frec:
-   frec.append( (light * 1e9)/elem)
-   deltafrec.append( ( np.power( ((light * 1e9)/elem),2) * res / light ) ) 
+   #for i in range(locMax[0],locMax[1]):
+   #  if(sltSpectrumAmp_power[i] == minim ):
+   #     loc_0.append(i)
+   
+   pmaxAmp_pwr = [] 
+   pmaxAmp_frec = [] 
+   for elem in locMax:
+      pmaxAmp_pwr.append(sltSpectrumAmp_power[elem])
+      pmaxAmp_frec.append(sltSpectrumAmp_frec[elem]*1e9)
+      #pmaxAmp_pwr.append(yy[elem])
+   #print ("pmaxAMP :" + str(pmaxAmp_pwr) )
+   
+   #Calculate the resolution again. Maybe optional?
+   #Dres_0 = (np.max(spec_src_frec_all[0]) - np.min(spec_src_frec_all[0])) / (len(spec_src_frec_all[0])-1)
+   #resol = np.ceil(3*res/Dres_0) # 7
+   #print("resl = "+ str(resol)  )
+   
+   #  ---  extremo esquerdo  ---- 
+   #id = find(sltSpectrumAmp(:,2)==min(sltSpectrumAmp(locMax(1)-ceil(5*res/Dres):locMax(1),2)));
+   minim_izq = 0 
+   minim_izq  = np.min(sltSpectrumAmp_power[(locMax[0]-int(resol)):locMax[0]])
+   #print ("minn" + str(minim_izq) )
+   #id(id<(locMax(1)-ceil(5*res/Dres)) | id>locMax(1)) = [];
+   for i in range(locMax[0]-int(resol),locMax[0]):
+     if(sltSpectrumAmp_power[i] == minim_izq ):
+   
+        loc_0.append(i)
+   
+   
+   #  ---  extremo direto  ---- 
+   #id = find(sltSpectrumAmp(:,2)==min(sltSpectrumAmp(locMax(end):locMax(end)+ceil(5*res/Dres),2)));
+   minim_der = 0
+   minim_der =  np.min(sltSpectrumAmp_power[(locMax[len(locMax)-1]):( locMax[len(locMax)- 1]  + int(resol) ) ])
+   #id(id<locMax(end) | id>(locMax(end)+ceil(5*res/Dres))) = [];
+   for i in range((locMax[len(locMax) - 1]) , (locMax[len(locMax) -1 ]+ int(resol) ) ):
+     if(sltSpectrumAmp_power[i] == minim_der ):
+        loc_0.append(i)
+   #print("loc_0: " + str(loc_0)  )
+   
+   # pminAmp = [sltSpectrumAmp(loc,1)*1e9 sltSpectrumAmp(loc,2)];
+   pminAmp_pwr = []
+   for elemen in loc_0:
+      pminAmp_pwr.append ( sltSpectrumAmp_power[elemen])   
+   
+   #print("pminAmp= " + str(pminAmp_pwr) )
 
-print("frec: "+ str(frec) )
-print("deltafrec: "+ str(deltafrec) )
-
-factor1  = 0.000215 * len(spec_amp_power_all[file_n])/(0.1)
-
-print ("factor : "+ str(factor1 ))
-
-sltSpectrumSrc = [] 
-sltSpectrumAmp = [] 
-
-#sltSpectrumSrc = spectrumSrc(sltRange,1);
-for elem in filtered_list:
-     sltSpectrumSrc.append(spec_src_power_all[file_n][elem]) # este aqui para q????? 
-
-print ("sltSpectrumSrc***" + str( len( sltSpectrumSrc  )) )
-#print ("*************" + str( spec_src_power_aux_1[1]) )
-#print("lista ===  "+ str(numbers))
- 
-
-#  reproducing : id = find(sltSpectrumAmp(:,2)==min(sltSpectrumAmp(locMax(i):locMax(i+1),2)));
-# Filter the data, and plot both the original and filtered signals.
-# It calculates over the first src file. Just for test. 
-#yy = butter_lowpass_filter(sltSpectrumSrc, cutoff, fs, order)
-yy = butter_lowpass_filter(sltSpectrumAmp_power, cutoff, fs, order)
-#ind = len(sltSpectrumSrc)
-ind = np.arange(len(sltSpectrumSrc))
-
-ax2 = fig.add_subplot(111)
-ax2.plot(ind, yy) 
-varrr = 'exemm'	
-plt.savefig(varrr+".svg")
-
-
-min0 = np.min(yy)
-max0 = np.max(yy)
-#print ("tressss:  " + str( min0
-#locMax = peakutils.indexes(yy, thres=((min + max)*0.5 ), thres_abs = True, min_dist= max0)
-
-locMax = []
-
-cont = 0
-while(len(loc) != len(locMax) ): 
-    if (cont < 100):
-       locMax = peakutils.indexes(yy, thres=((min0 + max0)* (cont/100)), thres_abs = True, min_dist= max0)
-       cont = cont + 1 
-
-print( "locMax: " + str(len(locMax)) )
-
-#1. procurr pontos minimos pocisões  entre esse range total de sltspectrumAMP. 
-#so para dois maximos, fazer para 3 maximos ou mais!
- 
-loc_0 = []
-loc_0 = []
-
-minim = []
-#minim = np.min(sltSpectrumAmp_power[locMax[0]:locMax[1]]) 
-
-for maxim in range(0,len(locMax)-1 ):
-  minim = np.min(sltSpectrumAmp_power[locMax[maxim]:locMax[maxim+1]]) 
- 
-  for i in range(locMax[maxim], locMax[maxim+1]):
-    if(sltSpectrumAmp_power[i] == minim ):
-       loc_0.append(i)
-
-
-
-print( "loc_0***: " + str(loc_0) )
-
-
-
-#for i in range(locMax[0],locMax[len(locMax)]):
-#  if(sltSpectrumAmp_power[i] == minim[i] ):
-#     loc_0.append(i)
-
-pmaxAmp_pwr = [] 
-pmaxAmp_frec = [] 
-for elem in locMax:
-   pmaxAmp_pwr.append(sltSpectrumAmp_power[elem])
-   pmaxAmp_frec.append(sltSpectrumAmp_frec[elem]*1e9)
-   #pmaxAmp_pwr.append(yy[elem])
-print ("pmaxAMP :" + str(pmaxAmp_pwr) )
-
-#Calculate the resolution again. Maybe optional?
-#Dres_0 = (np.max(spec_src_frec_all[file_n]) - np.min(spec_src_frec_all[file_n])) / (len(spec_src_frec_all[0])-1)
-#resol = np.ceil(3*res/Dres_0) # 7
-#print("resl = "+ str(resol)  )
-
-#  ---  extremo esquerdo  ---- 
-#id = find(sltSpectrumAmp(:,2)==min(sltSpectrumAmp(locMax(1)-ceil(5*res/Dres):locMax(1),2)));
-minim_izq  = np.min(sltSpectrumAmp_power[(locMax[0]-int(resol)):locMax[0]])
-#print ("minn" + str(minim_izq) )
-#id(id<(locMax(1)-ceil(5*res/Dres)) | id>locMax(1)) = [];
-for i in range(locMax[0]-int(resol),locMax[0]):
-  if(sltSpectrumAmp_power[i] == minim_izq ):
-
-     loc_0.append(i)
+   PaseAuxIN = []
+   pminSrc_pwr = []
+   #
+   #pminSrc = [sltSpectrumSrc(loc,1)*1e9 sltSpectrumSrc(loc,2)];
+   
+   
+   for elem in loc_0:
+      pminSrc_pwr.append(sltSpectrumSrc[elem] )
+   #print("pminSrc_pwr" + str(pminSrc_pwr ) )
+     
+   #  
+   #PaseAuxIN = ([10.^((pminSrc(:,2)+NoiseConv)/10);0] + [0;10.^((pminSrc(:,2)+NoiseConv)/10)])./2;  # esta muy raro esto.  perguntar o Joao
+   
+   first_p = [] 
+   first_p = conv_dbm2w(pminSrc_pwr)
+   var1 = []
+   for elem in first_p:
+     var1.append(float(elem)*1e3) 
+   var1.append(0) 
+   #print ("var1: " + str(var1)  )
+   
+   var2 = [] 
+   var2 = np.roll(var1,1)
+   
+   #print ("var2 ;" + str(var2)  )
+   PaseAuxIN = []
+   for elem in range (0, len(var2)):
+      # calculates the mean
+      PaseAuxIN.append ( (var1[elem] + var2[elem])/2  ) 
+   
+   #print (PaseAuxIN) 
+   	
+   # lamS = pmaxAmp(:,1);
+   lamS = []
+   for elem in pmaxAmp_frec:
+      lamS.append(elem)
+   #print( str(lamS) ) 
 
 
-#  ---  extremo direto  ---- 
-#id = find(sltSpectrumAmp(:,2)==min(sltSpectrumAmp(locMax(end):locMax(end)+ceil(5*res/Dres),2)));
-minim_der =  np.min(sltSpectrumAmp_power[(locMax[len(locMax)-1]):( locMax[len(locMax)- 1]  + int(resol) ) ])
-#id(id<locMax(end) | id>(locMax(end)+ceil(5*res/Dres))) = [];
-for i in range((locMax[len(locMax) - 1]) , (locMax[len(locMax) -1 ]+ int(resol) ) ):
-  if(sltSpectrumAmp_power[i] == minim_der ):
-     loc_0.append(i)
-print("loc_0: " + str(loc_0)  )
+   #***        PaseIN  = [lamS PaseAuxIN(2:end-1)*1e-3];  
+   aux_1 = []
+   
+   for i in range(1, len(PaseAuxIN)-1 ): #Paseaux sempre vai ter 4 elem?
+      aux_1.append(PaseAuxIN[i]*1e-3 ) 
+   
+   PaseIN = []
+   PaseIN.append(lamS)
+   PaseIN.append(aux_1) 
+   #print (PaseIN)
+   
+   
+   # --****        PaseAuxOUT= ([10.^((pminAmp(:,2)+NoiseConv)/10);0] + [0;10.^((pminAmp(:,2)+NoiseConv)/10)])./2;
+   first_p = []
+   first_p = conv_dbm2w(pminAmp_pwr)
+   var1 = []
+   for elem in first_p:
+     var1.append(float(elem)*1e3) 
+   var1.append(0) 
+   #print ("var1: " + str(var1)  )
+   var2 = np.roll(var1,1)
+   #print ("var2 ;" + str(var2)  )
+   
+   PaseAuxOUT = []
+   for elem in range (0, len(var2)):
+      # calculates the mean
+      PaseAuxOUT.append ( (var1[elem] + var2[elem])/2  ) 
 
-# pminAmp = [sltSpectrumAmp(loc,1)*1e9 sltSpectrumAmp(loc,2)];
-pminAmp_pwr = []
-for elemen in loc_0:
-   pminAmp_pwr.append ( sltSpectrumAmp_power[elemen])   
-
-print("pminAmp= " + str(pminAmp_pwr) )
-
-PaseAuxIN = []
-pminSrc_pwr = []
-#
-#pminSrc = [sltSpectrumSrc(loc,1)*1e9 sltSpectrumSrc(loc,2)];
-
-
-for elem in loc_0:
-   pminSrc_pwr.append(sltSpectrumSrc[elem] )
-print("pminSrc_pwr" + str(pminSrc_pwr ) )
-  
-#  
-#PaseAuxIN = ([10.^((pminSrc(:,2)+NoiseConv)/10);0] + [0;10.^((pminSrc(:,2)+NoiseConv)/10)])./2;  # esta muy raro esto.  perguntar o Joao
-
-first_p = conv_dbm2w(pminSrc_pwr)
-var1 = []
-for elem in first_p:
-  var1.append(float(elem)*1e3) 
-var1.append(0) 
-print ("var1: " + str(var1)  )
-
-var2 = np.roll(var1,1)
-
-print ("var2 ;" + str(var2)  )
-PaseAuxIN = []
-for elem in range (0, len(var2)):
-   # calculates the mean
-   PaseAuxIN.append ( (var1[elem] + var2[elem])/2  ) 
-
-print ("paseauxin =" + str(PaseAuxIN) )
+   # --****       PaseOUT = [lamS PaseAuxOUT(2:end-1)*1e-3];
+   PaseOUT = []
+   aux_1 = []
+   
+   for i in range(1, len(PaseAuxOUT)-1 ): #Paseaux sempre vai ter 4 elem?
+      aux_1.append(PaseAuxOUT[i]*1e-3 ) 
+   
+   PaseOUT.append(lamS)
+   PaseOUT.append(aux_1) 
+   #print ("PaseOUT :" + str(PaseOUT) )
+   
 	
-# lamS = pmaxAmp(:,1);
-lamS = []
-for elem in pmaxAmp_frec:
-   lamS.append(elem)
-#print( str(lamS) ) 
+
+   #*****    RealChannelGain  = [lamS 10*log10((10.^(pmaxAmp(:,2)/10)*1e-3-PaseOUT(:,2))*1e3) - 10*log10((10.^(pmaxSrc(:,2)/10)*1e-3-PaseIN(:,2))*1e3)];
+   # 10*log10( (10.^(pmaxAmp(:,2)/10)*1e-3-PaseOUT(:,2) ) *1e3) - 10*log10((10.^(pmaxSrc(:,2)/10)*1e-3-PaseIN(:,2))*1e3)];
+   
+   aux_0 = []
+   aux_1 = []
+   
+   #aux_0 = conv_dbm2w(pmaxSrc_power) 
+   
+   for elem in conv_dbm2w(pmaxSrc_power):
+     aux_0.append(float(elem) ) 
+    
+   for elem in conv_dbm2w(pmaxAmp_pwr):
+     aux_1.append(float(elem) ) 
+   
+   #print ("aux_0: " + str(aux_0) )
+   
+   #aux_1 = conv_dbm2w(pmaxAmp_pwr) 
+   valll = []
+   power_0 = []
+   power_1 = []
+   #print ( "len aux1: " + str(aux_1)  )
+   #print ( "len paseout: " + str(len(pmaxSrc_power) ) )
+    
+   RealChannelGain = [] 
+   for i in range(0,len(pmaxSrc_power) ):  
+     power_0.append( 10*np.log10( ((aux_1[i] )-(  PaseOUT[1][i] )) *1e3) )    
+     power_1.append( 10*np.log10( ((aux_0[i] )-(  PaseIN[1][i]  )) *1e3) )
+     RealChannelGain.append(power_0[i] - power_1[i])
+   
+   #print ("RealChannelGain :"+ str(RealChannelGain) )
+
+   #    Freq        = light./lamS * 1e9;
+   #    DeltaFreq   = (Freq.^2).*res./light;
+   DeltaFreq = [] 
+   Freq = []
+   for elem in lamS: 
+     Freq.append(light/elem * 1e9 )
+     
+   DeltaFreq = []
+   for elem in Freq: 
+     DeltaFreq.append(np.power(elem, 2) * res/light )
+   
+   #print("Freq: " + str(Freq) )
+   #print("DFreq: " + str(DeltaFreq) )
+   
+   
+   # *****---    NF_linear = (PaseOUT(:,2) - PaseIN(:,2).*10.^(RealChannelGain(:,2)/10))./(planck*Freq.*DeltaFreq.*10.^(RealChannelGain(:,2)/10));
+   aux_3 = []
+   NF_linear = []
+   NFEval = []
+   
+   conv_0 = conv_dbm2w(RealChannelGain)
+   
+   for elem in range(0, len(RealChannelGain)) :
+      NF_linear.append( ( PaseOUT[1][elem] - (PaseIN[1][elem] * conv_0[elem]*1e3 ) ) / (planck*Freq[elem]*DeltaFreq[elem]*float(conv_0[elem])*1e3 ) )
+      #aux_3.append(planck*Freq[elem]*DeltaFreq[elem]*float(conv_0[elem])*1e3 )
+      NFEval.append( 10*np.log10(  ( PaseOUT[1][elem] - (PaseIN[1][elem] * conv_0[elem]*1e3 ) ) / (planck*Freq[elem]*DeltaFreq[elem]*float(conv_0[elem])*1e3 ) ) )
+   NFEval_all.append( np.max(NFEval) )
+
+    #print("NFEval : " + str(np.max(NFEval) ) )
 
 
-#***        PaseIN  = [lamS PaseAuxIN(2:end-1)*1e-3];  
-aux_1 = []
-
-for i in range(1, len(PaseAuxIN)-1 ): #Paseaux sempre vai ter 4 elem?
-   aux_1.append(PaseAuxIN[i]*1e-3 ) 
-
-PaseIN = []
-PaseIN.append(lamS)
-PaseIN.append(aux_1) 
-print (PaseIN)
+   # ************* NFEval(j) = 10*log10(max(NF_linear));
+   #print("NF_linear : " + str(NF_linear) )
 
 
-# --****        PaseAuxOUT= ([10.^((pminAmp(:,2)+NoiseConv)/10);0] + [0;10.^((pminAmp(:,2)+NoiseConv)/10)])./2;
-first_p = []
-first_p = conv_dbm2w(pminAmp_pwr)
-var1 = []
-for elem in first_p:
-  var1.append(float(elem)*1e3) 
-var1.append(0) 
-#print ("var1: " + str(var1)  )
-var2 = np.roll(var1,1)
-#print ("var2 ;" + str(var2)  )
-
-PaseAuxOUT = []
-for elem in range (0, len(var2)):
-   # calculates the mean
-   PaseAuxOUT.append ( (var1[elem] + var2[elem])/2  ) 
-
-# --****       PaseOUT = [lamS PaseAuxOUT(2:end-1)*1e-3];
-PaseOUT = []
-aux_1 = []
-
-for i in range(1, len(PaseAuxOUT)-1 ): #Paseaux sempre vai ter 4 elem?
-   aux_1.append(PaseAuxOUT[i]*1e-3 ) 
-
-PaseOUT.append(lamS)
-PaseOUT.append(aux_1) 
-print ("PaseOUT :" + str(PaseOUT) )
-
-	
-
-#*****    RealChannelGain  = [lamS 10*log10((10.^(pmaxAmp(:,2)/10)*1e-3-PaseOUT(:,2))*1e3) - 10*log10((10.^(pmaxSrc(:,2)/10)*1e-3-PaseIN(:,2))*1e3)];
-# 10*log10( (10.^(pmaxAmp(:,2)/10)*1e-3-PaseOUT(:,2) ) *1e3) - 10*log10((10.^(pmaxSrc(:,2)/10)*1e-3-PaseIN(:,2))*1e3)];
-
-aux_0 = []
-aux_1 = []
-
-#aux_0 = conv_dbm2w(pmaxSrc_power) 
-
-for elem in conv_dbm2w(pmaxSrc_power):
-  aux_0.append(float(elem) ) 
+   # ******   GainFlatnessEval(j) = max(pmaxAmp(:,2)) - min(pmaxAmp(:,2));
+   #print("GainFlatnessEval : "+  str( np.max(pmaxAmp_pwr - np.min(pmaxAmp_pwr) ) ))
+   GainFlatnessEval_all.append( ( np.max(pmaxAmp_pwr) - np.min(pmaxAmp_pwr) ) )
  
-for elem in conv_dbm2w(pmaxAmp_pwr):
-  aux_1.append(float(elem) ) 
 
-print ("aux_0: " + str(aux_0) )
+#print("GainFlatnessEval_all : ******  "+  str(GainFlatnessEval_all))
+#print("NFEval_all : *********** " + str(NFEval_all ) )
 
-#aux_1 = conv_dbm2w(pmaxAmp_pwr) 
-valll = []
-power_0 = []
-power_1 = []
+arq = open('lista-out.txt', 'r')
 
-RealChannelGain = [] 
-for i in range(0,len(pmaxSrc_power) ):
-  power_0.append( 10*np.log10( ((aux_1[i] )-(  PaseOUT[1][i] )) *1e3) )    
-  power_1.append( 10*np.log10( ((aux_0[i] )-(  PaseIN[1][i]  )) *1e3) )
-  RealChannelGain.append(power_0[i] - power_1[i])
+texto = []
+texto.append('Target Gain(db)\t')
+texto.append('Pin (dBm)\t')
+texto.append('Target Output (dBm))\t')
+texto.append('Gain Flatness (dB)\t')
+texto.append('Noise Figure (dB)\t')
+texto.append('Src ch (dB)\t')
+texto.append('Amp ch (dB)\t')
+texto.append('\n')
 
-print ("RealChannelGain :"+ str(RealChannelGain) )
+#print( len(Amp_files))
 
-#    Freq        = light./lamS * 1e9;
-#    DeltaFreq   = (Freq.^2).*res./light;
-DeltaFreq = [] 
-Freq = []
-for elem in lamS: 
-  Freq.append(light/elem * 1e9 )
-  
-DeltaFreq = []
-for elem in Freq: 
-  DeltaFreq.append(np.power(elem, 2) * res/light )
+#file_spectrumSrc = path_uut+"/spectrum/Gain_%0.2f_Pin_%0.2f_Src.txt" % (max(TargetGain_s)-2, max(TargetPout) - max(TargetGain_s)) 
+for i in range (0, len(Amp_files)) :
+  texto.append(str(TargetGain_s[i])+'\t'+str(Pin_s[i]) + '\t' + str(TargetPout_s[i]) + '\t')
+  aux = "%0.2f\t%0.2f\t" %  (GainFlatnessEval_all[i], NFEval_all[i] )
+  texto.append(aux) 
+  texto.append(str(ch_src_all[i])+ '\t' + str(ch_amp_all[i]) + '\n' ) 
+  #texto.append(TargetGain_s[i])
 
-print("Freq: " + str(Freq) )
-print("DFreq: " + str(DeltaFreq) )
+with open('lista-out.txt', 'w') as filehandle:
+    #filehandle.writelines("%s\n" % place for place in texto)
+    filehandle.writelines( place for place in texto)
 
-
-# *****---    NF_linear = (PaseOUT(:,2) - PaseIN(:,2).*10.^(RealChannelGain(:,2)/10))./(planck*Freq.*DeltaFreq.*10.^(RealChannelGain(:,2)/10));
-aux_3 = []
-NF_linear = []
-NFEval = []
-
-conv_0 = conv_dbm2w(RealChannelGain)
-
-for elem in range(0, len(RealChannelGain)) :
-   NF_linear.append( ( PaseOUT[1][elem] - (PaseIN[1][elem] * conv_0[elem]*1e3 ) ) / (planck*Freq[elem]*DeltaFreq[elem]*float(conv_0[elem])*1e3 ) )
-   #aux_3.append(planck*Freq[elem]*DeltaFreq[elem]*float(conv_0[elem])*1e3 )
-   NFEval.append( 10*np.log10(  ( PaseOUT[1][elem] - (PaseIN[1][elem] * conv_0[elem]*1e3 ) ) / (planck*Freq[elem]*DeltaFreq[elem]*float(conv_0[elem])*1e3 ) ) )
-
-#print("NFEval : " + str(np.max(NFEval) ) )
-
-
-# ************* NFEval(j) = 10*log10(max(NF_linear));
-#print("NF_linear : " + str(NF_linear) )
-
-
-# ******   GainFlatnessEval(j) = max(pmaxAmp(:,2)) - min(pmaxAmp(:,2));
-#print("GainFlatnessEval : "+  str( np.max(pmaxAmp_pwr - np.min(pmaxAmp_pwr) ) ))
-
- 
+#texto = arq.readlines()
+#for linha in texto :
+#    print(linha)
+#arq.close()
 
 #for i in range(4100,5300): 
 #  #print ("index: "+ str((i)*(1/100)))	
@@ -795,20 +826,20 @@ for elem in range(0, len(RealChannelGain)) :
 
 #ind = np.arange(len(spectrumSrc_power_n))
 
-fig = plt.figure()
+#fig = plt.figure()
 #fig_f = plt.figure()
 
-ax = fig.add_subplot(111)
+#ax = fig.add_subplot(111)
 #ax.plot(ind, spectrumSrc_power_n)
 
-ax1 = fig.add_subplot(111)
-ax1.plot(ind, y)
+#ax1 = fig.add_subplot(111)
+#ax1.plot(ind, y)
 
 #for i in range(len(listaa)):
 #   ax1.plot( listaa[i], spectrumSrc_power_n[listaa[i]], 'go') # green bolinha
 
-varrr = 'exemm'	
-plt.savefig(varrr+".svg")
+#varrr = 'exemm'	
+#plt.savefig(varrr+".svg")
 
 #print(spectrumSrc_wave_n)
 #print(spectrumSrc_power_n)
